@@ -77,9 +77,10 @@ services:
     restart: unless-stopped
 
   iotlab-service:
+    # IOTLAB_SERVICE_IMAGE set: pulled from Docker Hub (built by GitHub Actions). Unset: built locally from source.
     build:
       context: ./iotlab-service
-    image: iotlab-service:local
+    image: ${IOTLAB_SERVICE_IMAGE:-iotlab-service:local}
     container_name: iotlab-service
     environment:
       CONFIG_PATH: /app/config/config
