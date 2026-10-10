@@ -1,0 +1,443 @@
+basePath: /api/v1
+definitions:
+  devicedtos.DeviceDTO:
+    properties:
+      device_id:
+        type: string
+      first_seen:
+        type: string
+      fw:
+        type: string
+      ip:
+        type: string
+      last_seen:
+        type: string
+      location:
+        type: string
+      metadata:
+        type: object
+      name:
+        type: string
+      status:
+        type: string
+      status_changed_at:
+        type: string
+    type: object
+  devicedtos.SensorAverageDTO:
+    properties:
+      avg_humidity_pct:
+        type: number
+      avg_temp_c:
+        type: number
+      range:
+        type: string
+      samples:
+        type: integer
+    type: object
+  devicedtos.SensorBucketDTO:
+    properties:
+      avg_c:
+        type: number
+      avg_h:
+        type: number
+      bucket:
+        type: string
+      max_c:
+        type: number
+      max_h:
+        type: number
+      min_c:
+        type: number
+      min_h:
+        type: number
+      samples:
+        type: integer
+    type: object
+  devicedtos.SensorDTO:
+    properties:
+      humidity_pct:
+        type: number
+      temp_c:
+        type: number
+      time:
+        type: string
+    type: object
+  devicedtos.SensorStats24hDTO:
+    properties:
+      points:
+        items:
+          $ref: '#/definitions/devicedtos.SensorBucketDTO'
+        type: array
+      range:
+        type: string
+      summary:
+        $ref: '#/definitions/devicedtos.SensorSummary'
+    type: object
+  devicedtos.SensorStatsDTO:
+    properties:
+      points:
+        items:
+          $ref: '#/definitions/devicedtos.SensorDTO'
+        type: array
+      range:
+        type: string
+      summary:
+        $ref: '#/definitions/devicedtos.SensorSummary'
+    type: object
+  devicedtos.SensorSummary:
+    properties:
+      humidity_pct:
+        $ref: '#/definitions/devicedtos.Stat'
+      samples:
+        type: integer
+      temp_c:
+        $ref: '#/definitions/devicedtos.Stat'
+    type: object
+  devicedtos.Stat:
+    properties:
+      avg:
+        type: number
+      max:
+        type: number
+      min:
+        type: number
+    type: object
+  devicedtos.TelemetryDTO:
+    properties:
+      fw:
+        type: string
+      heap_free:
+        type: integer
+      heap_min:
+        type: integer
+      ip:
+        type: string
+      mqtt_reconnects:
+        type: integer
+      reset_reason:
+        type: string
+      rssi_dbm:
+        type: integer
+      sensor_errors:
+        type: integer
+      time:
+        type: string
+      uptime_s:
+        type: integer
+      wifi_reconnects:
+        type: integer
+    type: object
+  devicedtos.TelemetryStatsDTO:
+    properties:
+      points:
+        items:
+          $ref: '#/definitions/devicedtos.TelemetryDTO'
+        type: array
+      range:
+        type: string
+      summary:
+        $ref: '#/definitions/devicedtos.TelemetrySummary'
+    type: object
+  devicedtos.TelemetrySummary:
+    properties:
+      heap_free:
+        $ref: '#/definitions/devicedtos.Stat'
+      heap_min:
+        $ref: '#/definitions/devicedtos.Stat'
+      rssi_dbm:
+        $ref: '#/definitions/devicedtos.Stat'
+      samples:
+        type: integer
+    type: object
+  response.BaseRes:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  description: |-
+    HTTP API of the iotlab-service. Every endpoint answers with the shared
+    response envelope: `code` carries the domain outcome, `data` the payload.
+  title: IoT Service API
+  version: 1.0.0
+paths:
+  /devices:
+    get:
+      description: Returns every registered device ordered by device id.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Devices
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/devicedtos.DeviceDTO'
+                  type: array
+              type: object
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: List devices
+      tags:
+      - devices
+  /devices/{id}/sensor/average-24h:
+    get:
+      description: Returns the average temperature and humidity of the last 24h, computed
+        from the 30-minute buckets.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Averages
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.SensorAverageDTO'
+              type: object
+        "400":
+          description: Invalid device id
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get 24h average temperature/humidity
+      tags:
+      - devices
+  /devices/{id}/sensor/current:
+    get:
+      description: Returns the newest sensor reading of the device.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Newest reading
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.SensorDTO'
+              type: object
+        "400":
+          description: Invalid device id
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "404":
+          description: Device has no reading
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get current temperature/humidity
+      tags:
+      - devices
+  /devices/{id}/sensor/stats:
+    get:
+      description: Returns the raw sensor series of the window plus a min/max/avg
+        summary.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window
+        enum:
+        - 30m
+        - 60m
+        - 90m
+        in: query
+        name: range
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Series and summary
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.SensorStatsDTO'
+              type: object
+        "400":
+          description: Invalid device id or range
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get temperature/humidity stats
+      tags:
+      - devices
+  /devices/{id}/sensor/stats-24h:
+    get:
+      description: Returns the 30-minute buckets of the last 24h plus a min/max/avg
+        summary.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Buckets and summary
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.SensorStats24hDTO'
+              type: object
+        "400":
+          description: Invalid device id
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get 24h temperature/humidity stats
+      tags:
+      - devices
+  /devices/{id}/telemetry/current:
+    get:
+      description: Returns the newest telemetry report of the device.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Newest report
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.TelemetryDTO'
+              type: object
+        "400":
+          description: Invalid device id
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "404":
+          description: Device has no telemetry
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get current telemetry
+      tags:
+      - devices
+  /devices/{id}/telemetry/stats:
+    get:
+      description: Returns the telemetry series of the window plus an RSSI/heap min/max/avg
+        summary.
+      parameters:
+      - description: Device ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Window
+        enum:
+        - 15m
+        - 30m
+        - 60m
+        in: query
+        name: range
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Series and summary
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.BaseRes'
+            - properties:
+                data:
+                  $ref: '#/definitions/devicedtos.TelemetryStatsDTO'
+              type: object
+        "400":
+          description: Invalid device id or range
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+        "500":
+          description: Internal error
+          schema:
+            $ref: '#/definitions/response.BaseRes'
+      summary: Get telemetry stats
+      tags:
+      - devices
+swagger: "2.0"

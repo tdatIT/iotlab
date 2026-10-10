@@ -1,0 +1,75 @@
+# Sample configuration for this service.
+# Copy to config/config-<env>.yaml and override per environment. CONFIG_PATH selects the file.
+# RULES:
+# 1. Don't add new keys here. Declare them in config/config.go, then add the env-specific value in config/config-<env>.yaml.
+# 2. Don't comment business logic, behavior, tuning advice, or what a field does. No commented-out example blocks either. All of that belongs in docs/GUIDELINE.md.
+# 3. Only these comment forms are allowed on a key:
+#      # override: ENV_VAR | required   -> secret or env-specific, service must not run with default
+#      # override: ENV_VAR              -> env-overridable, default is safe
+#      # optional                       -> may stay empty
+#    Example:
+#      password: ""   # override: DATABASE_PASSWORD | required
+#      options: ""    # optional
+# 4. ENV_VAR is the YAML path uppercased with "." replaced by "_" (viper AutomaticEnv). adapters.product.apiKey -> ADAPTERS_PRODUCT_APIKEY
+# 5. Never commit a real credential. Secrets stay empty here and come from the environment.
+
+server:
+  name: "iotlab-service"
+  version: "1.0.0"
+  port: ":3000"
+  readTimeout: "5s"
+  writeTimeout: "5s"
+  ctxDefaultTimeout: "15s"
+  debug: true
+
+database:
+  host: "localhost"
+  port: 5432
+  userName: "postgres"
+  password: ""                       # override: DATABASE_PASSWORD | required
+  database: "app_db"
+  schema: "public"
+  maxOpenConns: 25
+  connMaxLifetime: "1h"
+  connMaxIdleTime: "10m"
+  options: ""                        # optional
+  autoMigrate: true                  # override: DATABASE_AUTOMIGRATE
+
+logger:
+  level: "info"
+  format: "console"
+
+mqtt:
+  broker: "tcp://localhost:1883"
+  clientID: "iotlab-service"
+  username: ""                       # optional
+  password: ""                       # override: MQTT_PASSWORD | optional
+  connectTimeout: "5s"
+  keepAlive: "30s"
+  publishTimeout: "5s"
+  connectRetryInterval: "5s"
+
+rateLimit:
+  enabled: false
+  rate: 100
+  burst: 200
+  expiresIn: "1m"
+
+routeRateLimit:
+  enabled: true
+  rate: 5
+  burst: 10
+  expiresIn: "1m"
+
+adapters: {}
+
+workers:
+  sensor:
+    topic: "homelab/iot/env/+/sensor"
+    qos: 0
+  telemetry:
+    topic: "homelab/iot/devices/+/telemetry"
+    qos: 0
+  deviceStatus:
+    topic: "homelab/iot/devices/+/status"
+    qos: 0

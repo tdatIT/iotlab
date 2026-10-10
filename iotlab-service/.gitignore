@@ -1,0 +1,37 @@
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Scratch file coverage.sh writes when go test fails
+test_err.log
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+*.iml
+*.ipr
+*.iws
+.idea/
+/build/
+/dist/
+/out/
+/config/config-*.yml
+/config/config-*.yaml
+/vendor/
+# Share the agent setup (settings.json + hooks); keep only per-developer overrides local.
+/.claude/settings.local.json

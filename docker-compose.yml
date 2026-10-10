@@ -1,0 +1,131 @@
+name: iotlab
+
+services:
+  traefik:
+    image: docker.io/library/traefik:v3.3
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=iotlab
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      # Let's Encrypt via HTTP-01: API_DOMAIN must point to this host and port 80 must be reachable from the internet.
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      # Default is the STAGING CA (untrusted test certs). Production: https://acme-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.le.acme.caserver=${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Docker: /var/run/docker.sock. Podman rootful: /run/podman/podman.sock.
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
+      - traefik-acme:/letsencrypt
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - iotlab
+    restart: unless-stopped
+
+  timescaledb:
+    image: docker.io/timescale/timescaledb:latest-pg17
+    container_name: tsdb
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-devlab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-telemetry}
+    ports:
+      # Localhost only: never expose Postgres publicly. Use an SSH tunnel from your PC.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      # No init.sql mount: iotlab-service owns the schema and applies migrations on startup.
+      - tsdb-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - iotlab
+    restart: unless-stopped
+
+  mosquitto:
+    image: docker.io/library/eclipse-mosquitto:2
+    container_name: mosquitto
+    environment:
+      MQTT_USER: ${MQTT_USERNAME:-iotlab}
+      MQTT_PASS: ${MQTT_PASSWORD:?set MQTT_PASSWORD in .env}
+    command: >
+      sh -c 'mosquitto_passwd -c -b /mosquitto/passwd "$$MQTT_USER" "$$MQTT_PASS"
+      && chown mosquitto:mosquitto /mosquitto/passwd
+      && chmod 0700 /mosquitto/passwd
+      && exec mosquitto -c /mosquitto/config/mosquitto.conf'
+    ports:
+      # ESP32 devices connect here.
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    networks:
+      - iotlab
+    restart: unless-stopped
+
+  iotlab-service:
+    build:
+      context: ./iotlab-service
+    image: iotlab-service:local
+    container_name: iotlab-service
+    environment:
+      CONFIG_PATH: /app/config/config
+      SERVER_DEBUG: "false"
+      DATABASE_HOST: timescaledb
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: ${DB_USERNAME:-devlab}
+      DATABASE_PASSWORD: ${DB_PASSWORD}
+      DATABASE_DATABASE: ${DB_NAME:-telemetry}
+      DATABASE_OPTIONS: sslmode=disable
+      DATABASE_AUTOMIGRATE: "true"
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iotlab}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      LOGGER_LEVEL: ${LOGGER_LEVEL:-info}
+      ROUTERATELIMIT_RATE: ${ROUTERATELIMIT_RATE:-5}
+      ROUTERATELIMIT_BURST: ${ROUTERATELIMIT_BURST:-10}
+    ports:
+      # Localhost only, for debugging without Traefik. Public traffic goes through Traefik.
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/readiness" ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.iotlab-api.rule=Host(`${API_DOMAIN:?set API_DOMAIN in .env}`)
+      - traefik.http.routers.iotlab-api.entrypoints=websecure
+      - traefik.http.routers.iotlab-api.tls.certresolver=le
+      - traefik.http.services.iotlab-api.loadbalancer.server.port=3000
+    networks:
+      - iotlab
+    restart: unless-stopped
+
+networks:
+  iotlab:
+    name: iotlab
+
+volumes:
+  tsdb-data:
+  mosquitto-data:
+  traefik-acme:

@@ -1,0 +1,30 @@
+# Env files (keep .env.example)
+.env
+.env.*
+!.env.example
+
+# iotlab-web is its own git repo (deployed separately)
+/iotlab-web/
+
+# Build output / dependencies
+node_modules/
+dist/
+build/
+coverage/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+Thumbs.db
+
+# Claude Code per-developer overrides
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# Local runtime data
+mosquitto/data/
+mosquitto/log/

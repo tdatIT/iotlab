@@ -1,0 +1,36 @@
+# Mockery v3 configuration
+# Docs: https://vektra.github.io/mockery/latest/configuration/
+# Run: go tool mockery   (regenerate all mocks)
+template: testify
+formatter: goimports
+all: false
+dir: "{{.InterfaceDir}}/mock"
+filename: "{{.InterfaceName | snakecase}}_mock.go"
+pkgname: "mock"
+structname: "Mock{{.InterfaceName}}"
+
+# Framework-level interfaces this template already provides mocks for.
+# When you add a new domain, add its repository (and any adapter interfaces)
+# here so `go tool mockery` regenerates them next to their real code.
+packages:
+  github.com/tdatIT/iotlab-service/internal/infras/repository/device:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/internal/infras/repository/sensor:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/internal/infras/repository/telemetry:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/pkgs/cache:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/pkgs/locker:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/pkgs/mqtt:
+    config:
+      all: true
+  github.com/tdatIT/iotlab-service/internal/infras/mqttpub:
+    config:
+      all: true

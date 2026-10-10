@@ -1,0 +1,73 @@
+services:
+  traefik:
+    image: docker.io/library/traefik:v3.3
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      # Let's Encrypt via HTTP-01: the domain must point to this host and port 80 must be reachable from the internet.
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL:-}
+      - --certificatesresolvers.le.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      # Default is the STAGING CA (untrusted test certs, no rate limit trouble).
+      # Production: ACME_CA_SERVER=https://acme-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.le.acme.caserver=${ACME_CA_SERVER:-https://acme-staging-v02.api.letsencrypt.org/directory}
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Docker: /var/run/docker.sock. Podman rootful: /run/podman/podman.sock.
+      # Podman rootless: /run/user/<uid>/podman/podman.sock
+      - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
+      - traefik-acme:/letsencrypt
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  timescaledb:
+    image: docker.io/timescale/timescaledb:latest-pg17
+    container_name: tsdb
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-devlab}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devpass}
+      POSTGRES_DB: ${DB_NAME:-telemetry}
+    ports:
+      # Localhost only: never expose Postgres on a public VPS. Use an SSH tunnel to connect from your PC.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - tsdb-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mosquitto:
+    image: docker.io/library/eclipse-mosquitto:2
+    container_name: mosquitto
+    environment:
+      MQTT_USER: ${MQTT_USERNAME:-public}
+      MQTT_PASS: ${MQTT_PASSWORD:-nopass}
+    command: >
+      sh -c 'rm -f /mosquitto/config/passwd
+      && mosquitto_passwd -c -b /mosquitto/config/passwd "$$MQTT_USER" "$$MQTT_PASS"
+      && chown mosquitto:mosquitto /mosquitto/config/passwd
+      && chmod 0700 /mosquitto/config/passwd
+      && exec mosquitto -c /mosquitto/config/mosquitto.conf'
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+
+volumes:
+  tsdb-data:
+  traefik-acme:
