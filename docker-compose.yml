@@ -82,7 +82,8 @@ services:
     pull_policy: always
     container_name: iotlab-service
     environment:
-      CONFIG_PATH: /app/config/config
+      # Relative to WORKDIR /app: viper joins it onto the "." search path, so an absolute path is not found.
+      CONFIG_PATH: config/config
       SERVER_DEBUG: "false"
       DATABASE_HOST: timescaledb
       DATABASE_PORT: "5432"

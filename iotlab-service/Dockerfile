@@ -21,8 +21,8 @@ WORKDIR /app
 COPY --from=builder /app/app-bin /app/app-bin
 COPY --from=builder /app/config  /app/config
 
-# Selects config/config.yaml; point it at /app/config/config-dev for the dev profile.
-ENV CONFIG_PATH=/app/config/config
+# Selects config/config.yaml, relative to WORKDIR (viper does not accept an absolute path here).
+ENV CONFIG_PATH=config/config
 
 EXPOSE 3000
 USER app
