@@ -77,10 +77,9 @@ services:
     restart: unless-stopped
 
   iotlab-service:
-    # IOTLAB_SERVICE_IMAGE set: pulled from Docker Hub (built by GitHub Actions). Unset: built locally from source.
-    build:
-      context: ./iotlab-service
-    image: ${IOTLAB_SERVICE_IMAGE:-iotlab-service:local}
+    # Built and pushed to Docker Hub by GitHub Actions; `always` re-pulls the tag (e.g. latest) on every `up`.
+    image: ${IOTLAB_SERVICE_IMAGE:?set IOTLAB_SERVICE_IMAGE in .env}
+    pull_policy: always
     container_name: iotlab-service
     environment:
       CONFIG_PATH: /app/config/config
