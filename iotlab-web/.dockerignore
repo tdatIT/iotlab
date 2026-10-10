@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.claude
+.agents
+.vercel
+*.tmp.mjs
+*.log
+.env
+.env.*
+!.env.example
+Dockerfile
+docker-compose.yml

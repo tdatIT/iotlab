@@ -3,9 +3,6 @@
 .env.*
 !.env.example
 
-# iotlab-web is its own git repo (deployed separately)
-/iotlab-web/
-
 # Build output / dependencies
 node_modules/
 dist/

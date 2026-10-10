@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-`iotlab-hub` is a plain folder (not a git repo) holding two independent projects. Each has its own `CLAUDE.md`, README,
+`iotlab-hub` is a git repo holding two independent projects. Each has its own `CLAUDE.md`, README,
 toolchain and build — **read the sub-project's `CLAUDE.md` before changing code in it**, and run commands from inside
 that sub-project.
 
@@ -11,7 +11,7 @@ that sub-project.
 | `iotlab-service/` | Go 1.27.1, Echo v5, pgx v5 + TimescaleDB, Paho MQTT, golang-migrate | `iotlab-service/CLAUDE.md`, then `docs/GUIDELINE.md` + `.agents/skills/{go-style-core,go-clean-cqrs-architecture}/SKILL.md` |
 | `iotlab-web/` | React 19, Vite, TypeScript strict, react-router v7, Astryx design system, recharts, react-i18next (en/vi) | `iotlab-web/CLAUDE.md` and `iotlab-web/.claude/CLAUDE.md` (Astryx rules + `npx astryx` CLI workflow) |
 
-`iotlab-web/` is its own git repo; `iotlab-service/` is not under git in this checkout.
+Both projects live in this one git repo (root). `iotlab-web` history before the merge is in `../iotlab-web.git.bak`.
 
 Deployment: root `docker-compose.yml` (Traefik + TimescaleDB + Mosquitto + iotlab-service built from `./iotlab-service`,
 env from `.env`, see `README.md`). The frontend is deployed separately. `iotlab-service/docker-compose.yml` is the older
