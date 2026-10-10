@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -24,7 +25,16 @@ func RunMigrations(sqlDB *sql.DB, fsys fs.FS) error {
 		return fmt.Errorf("load migration source: %w", err)
 	}
 
-	driver, err := migratepg.WithInstance(sqlDB, &migratepg.Config{})
+	// The migrator runs on its own connection, released when done: a connection left checked out blocks pgxpool.Close, and so
+	// the shutdown, forever. WithConnection (unlike WithInstance) never closes the shared *sql.DB the caller owns.
+	ctx := context.Background()
+	conn, err := sqlDB.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("init migrate driver: %w", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	driver, err := migratepg.WithConnection(ctx, conn, &migratepg.Config{})
 	if err != nil {
 		return fmt.Errorf("init migrate driver: %w", err)
 	}
@@ -33,8 +43,6 @@ func RunMigrations(sqlDB *sql.DB, fsys fs.FS) error {
 	if err != nil {
 		return fmt.Errorf("init migrator: %w", err)
 	}
-	// Intentionally NOT calling m.Close(): WithInstance wraps the shared *sql.DB and Close would shut the pool that the caller
-	// (Server) owns.
 
 	switch err := m.Up(); {
 	case errors.Is(err, migrate.ErrNoChange):
